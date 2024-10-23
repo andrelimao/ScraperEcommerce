@@ -27,7 +27,7 @@ bash
         beautifulsoup4
         selenium
         pandas (para exportação em XLS)
-        reportlab (para geração de PDFs)
+        
         requests (para acesso a páginas)
         openpyxl (para trabalhar com arquivos Excel)
 
