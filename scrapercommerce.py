@@ -578,123 +578,33 @@ def extrai_dados_prodirectsports(url_linha):
            
 
 def extrai_dados_prodirectsports(url_linha):
-     
-    print("entrou")
-    print(url_linha)
+    # Extrair produtos de todas as páginas
+    products = get_products(url_linha)
     
-    data_planilha = []
-    data_pdf = []
-    tamanhos = []
+    # Criar a lista de dados para a planilha
+    product_data = []
+    
+    for product in products:
+        preco = product["pricing"]["current"]
+        preco_venda = calcula_preco_venda(preco)
+        preco_reais = calcula_preco_reais(preco)
+        sizes = ', '.join([size['name'] for size in product.get('variants', [])])
+        product_data.append({
+            'Name': product["name"],
+            'Preco': preco,
+            "Venda": preco_venda,
+            'SKU': product["id"],
+            'Sizes': sizes,
+            'Image URL': product["image"]
+        })
 
-    cotacao_libra()  # Supondo que essa função já esteja definida
-    i = 0
-    driver.get(url_linha)
+    # Criar DataFrame e salvar em Excel
+    df = pd.DataFrame(product_data)
+    df.to_excel("products.xlsx", index=False)
+    print("Planilha Excel gerada com sucesso!")
     
-    #Cookies
-    WebDriverWait(driver, 100).until(EC.element_to_be_clickable((By.XPATH,"//button[@title='Accept all cookies']"))).click()
-    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH,"//div[@id='zonos']")))
-    botao_close = driver.find_element(By.XPATH, "//a[@class = 'z-close']")
-    driver.execute_script("arguments[0].click();",botao_close)
-    #WebDriverWait(driver, 100).until(EC.element_to_be_clickable((By.XPATH,"//div[@class='global-popup']")))
-    botao = driver.find_element(By.XPATH,"//button[@aria-label='Close']")
-    driver.execute_script("arguments[0].click();",botao)
-    #driver.implicitly_wait(500000)
-    
-   
-    df_planilha = pd.DataFrame(columns=COLUNAS_PLANILHA)
-    
-    x = 0 
-    driver.maximize_window()
-   
-    while True:
-        try:
-        # Reencontrar o botão dentro do loop para evitar stale element
-            botao_vermais = WebDriverWait(driver, 20).until(
-                    EC.presence_of_element_located((By.XPATH, "//div[@class='product-listing__view-more']/button"))
-                    )
-
-            if botao_vermais.is_displayed():
-                driver.execute_script("arguments[0].scrollIntoView();", botao_vermais)
-                driver.execute_script("arguments[0].click();", botao_vermais)
-                x += 1
-                print(x)
-            else:
-                break  # Sai do loop se o botão não for mais exibido
-        except StaleElementReferenceException:
-            print("Elemento 'Ver mais' tornou-se stale, reencontrando o botão...")
-            continue  # Tenta novamente o loop
-        except TimeoutException:
-            print("Tempo esgotado esperando o botão 'Ver mais'.")
-            break
-       
-    produtos_lista = WebDriverWait(driver, 10).until(EC.visibility_of_all_elements_located((By.XPATH, "//div[@class = 'product-listing__grid']//div[@class = '_root_129ai_6 product-listing__grid-item']/a")))
-    produtos_container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, "//div[@class = 'product-listing__grid']")))#driver.execute_script("arguments[0].scrollIntoView();", produtos_lista)
-    driver.execute_script("arguments[0].scrollIntoView();", produtos_container)        
-    
-    for index, value in enumerate(produtos_lista):
-        produtos_lista = WebDriverWait(driver, 10).until(EC.visibility_of_all_elements_located((By.XPATH, "//div[@class = 'product-listing__grid']//div[@class = '_root_129ai_6 product-listing__grid-item']/a")))
-        
-        time.sleep(10)
-        driver.save_screenshot("janela.png")
-        driver.execute_script("arguments[0].scrollIntoView();", produtos_lista[index])
-        #print(imagem)
-        i += 1
-        print(i)
-        #actions.move_to_element(produtos_lista[index]).perform()
-        driver.execute_script("arguments[0].click();", produtos_lista[index])
-        time.sleep(10)
-        driver.save_screenshot("projetoecommerce/screenshots_produtos/prodirectsports/" + str(i) +".png")
-        nome_produto = WebDriverWait(driver, 1000).until(EC.visibility_of_element_located((By.CLASS_NAME, "ml-meta__title"))).text
-        print(nome_produto)
-        preco = WebDriverWait(driver, 1000).until(EC.visibility_of_element_located((By.CLASS_NAME, "ml-prices__price"))).text
-        preco = re.sub("£", "", preco)
-        preco_produto = float(preco) 
-        print(preco_produto)
-        codigo_produto = driver.current_url.split('-')[-1]
-        print(codigo_produto)
-        lista_tamanhos = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.CLASS_NAME,  "ml-size__sizes")))
-            
-        if lista_tamanhos:
-            driver.execute_script("arguments[0].scrollIntoView();", lista_tamanhos)
-            for tamanho in lista_tamanhos.find_elements(By.XPATH, "//button[@class='ml-size__size qa-size-item']"):
-                tamanho_produto = tamanho.text
-                tamanhos.append(tamanho_produto)
-                if "-" in tamanho.text:
-                    tamanho_produto = tamanho.text.split('-')[0] 
-                    tamanhos.append(tamanho_produto)
-                elif "(" in tamanho.text:
-                    tamanho_produto = tamanho.text.split('(')[0]
-                    tamanhos.append(tamanho_produto)
-                else:
-                    tamanho_produto = ""
-                    tamanhos.append(tamanho_produto)
-            print(tamanhos)
-
-        preco_reais = calcula_preco_reais(preco_produto)  # Função precisa estar definida
-        preco_venda = calcula_preco_venda(preco_produto)  # Função precisa estar definida
-
-        data_planilha.append({
-            #'Photo': imagem,
-            'Código': codigo_produto,
-            'Descrição': nome_produto,
-            'Compra': preco_reais,
-            'Venda': preco_venda,
-            'Tamanhos': tamanhos
-            })
-        
-            
-        driver.execute_script("window.history.go(-1)")
-        driver.back()
-    
-    botao_vermais = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.XPATH, "//div[@class = 'product-listing__view-more']//button[@class = 'btn btn-outline-dark btn-wide btn-extra-wide btn-lg btn-loading']")))
-    while botao_vermais:
-        botao_vermais.click()
-    
-    df_planilha = pd.DataFrame(data_planilha)
-    df_planilha.to_excel(url_linha + "catalogo.xlsx")    
-
-
-def gera_pdf(data_pdf):
+    # Chamar função para gerar o PDF
+    gera_pdf(products)def gera_pdf(data_pdf):
     # Função para gerar as páginas do PDF com as imagens e os dados
     fig, ax = plt.subplots(figsize=(8.27, 11.69))  # Tamanho A4 em polegadas
     ax.axis('off')
